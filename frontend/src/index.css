@@ -1,0 +1,14 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, "Segoe UI", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f5f6f8;
+  color: #1a1a1a;
+}
