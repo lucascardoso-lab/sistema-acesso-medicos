@@ -733,3 +733,25 @@ Arquivos afetados: `backend/app/core/email.py`,
 `backend/app/repositories/comunicacao_repository.py`,
 `backend/app/services/solicitacao_service.py`,
 `backend/app/api/routes/solicitacoes.py`.
+
+**Adendo 35.5 — Gerenciamento de usuários e scripts Windows**
+
+Contexto: §11 (gerenciamento de usuários) e §18 (scripts Windows) não
+detalham a API nem a localização dos scripts.
+
+Decisão:
+1. `/api/usuarios/*` (listar, criar, atualizar perfil/status, redefinir
+   senha) exige perfil `administrador` (`require_perfil`), diferente dos
+   endpoints de solicitações que aceitam qualquer perfil autenticado — aqui
+   o §11 é explícito ("Administrador: gerencia usuários"). Um administrador
+   não pode desativar a si mesmo (evita perda acidental de acesso quando há
+   apenas um admin).
+2. Scripts opcionais (§18) em `scripts/windows/` na raiz do repositório:
+   `setup-backend.bat`/`setup-frontend.bat` (primeira configuração) e
+   `start-backend.bat`/`start-frontend.bat`/`start-dev.bat` (inicialização
+   do dia a dia). Não substituem a documentação do README (etapa 19) — são
+   um atalho opcional, conforme pedido no §18.
+
+Arquivos afetados: `backend/app/api/routes/usuarios.py`,
+`backend/app/schemas/user.py`, `backend/app/repositories/user_repository.py`,
+`frontend/src/pages/admin/Usuarios.tsx`, `scripts/windows/*.bat`.
