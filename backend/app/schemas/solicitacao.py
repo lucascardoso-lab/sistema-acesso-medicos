@@ -52,6 +52,10 @@ class SolicitacaoDetail(BaseModel):
     respondido_at: datetime | None
 
 
+class SolicitacaoCreatedResponse(BaseModel):
+    protocolo: str
+
+
 class RejeitarRequest(BaseModel):
     motivo: str = Field(min_length=3, max_length=2000)
 

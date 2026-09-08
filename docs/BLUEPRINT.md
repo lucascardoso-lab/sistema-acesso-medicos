@@ -673,3 +673,39 @@ consistente ao impedir pular etapas do fluxo de análise.
 Arquivos afetados: `backend/app/api/routes/solicitacoes.py`,
 `backend/app/services/solicitacao_service.py`,
 `backend/app/schemas/solicitacao.py`.
+
+**Adendo 35.3 — Upload seguro: validação, armazenamento e visualização de documentos**
+
+Contexto: o BLUEPRINT (§3, §12) exige validação de tamanho/extensão/MIME type,
+nome de arquivo aleatório e acesso aos documentos somente via API autenticada,
+sem detalhar o mecanismo exato.
+
+Decisão:
+1. Validação em duas camadas por upload: extensão do nome do arquivo (allowlist
+   por campo — documento aceita `.pdf/.jpg/.jpeg/.png`, foto aceita apenas
+   `.jpg/.jpeg/.png`) e MIME type real detectado via `python-magic` a partir
+   dos bytes do arquivo, comparado contra a extensão informada — nunca se
+   confia no `Content-Type` enviado pelo cliente. Tamanho verificado após a
+   leitura, contra `MAX_UPLOAD_SIZE`.
+2. Nome de arquivo sempre gerado com `uuid4().hex` + extensão validada, salvo
+   em `UPLOAD_DIR/documentos/` ou `UPLOAD_DIR/fotos/`. O nome/caminho original
+   do upload nunca é usado para gravação em disco.
+3. `POST /api/solicitacoes` (público, sem autenticação) cria a solicitação:
+   valida consentimento LGPD obrigatório, gera protocolo sequencial anual
+   (`solicitacao_repository.gerar_protocolo`) com retry em caso de colisão
+   (`IntegrityError` na constraint `unique` de `protocolo`), grava os arquivos
+   e registra o evento "Solicitação criada" no histórico. Rate limit de
+   5 requisições/minuto por IP (slowapi), conforme §12.
+4. `GET /api/solicitacoes/{id}/documentos/{tipo}` (protegido, exige
+   autenticação) serve o arquivo via `FileResponse`, resolvendo o caminho a
+   partir do banco — nunca a partir de entrada do cliente — e validando que o
+   caminho resolvido permanece dentro de `UPLOAD_DIR` antes de servir
+   (defesa contra path traversal caso o dado em banco seja corrompido).
+
+Motivo: opção mais simples e segura para o MVP que atende integralmente ao
+§12 sem introduzir infraestrutura extra (ex.: object storage) nesta fase.
+
+Arquivos afetados: `backend/app/utils/file_validation.py`,
+`backend/app/services/upload_service.py`,
+`backend/app/api/routes/solicitacoes.py`,
+`backend/app/schemas/solicitacao.py`.
