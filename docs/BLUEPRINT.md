@@ -619,4 +619,25 @@ arquivo.
 > **Adendo X.Y — título curto**
 > Contexto, decisão tomada, motivo, arquivos afetados.
 
-(Nenhum adendo registrado ainda.)
+**Adendo 35.1 — Sessão administrativa via cookie httpOnly**
+
+Contexto: o BLUEPRINT não especifica como o token de autenticação da área
+administrativa deve ser transportado entre frontend e backend (§5, §12).
+
+Decisão: o backend emite um JWT e o envia em um cookie `httpOnly` + `Secure`
+(em produção) + `SameSite=Lax`, em vez de retornar o token no corpo da
+resposta para ser guardado em `localStorage`. O frontend (`axios`) usa
+`withCredentials: true` em todas as chamadas e trata `401` redirecionando para
+`/login`. Proteção CSRF será resolvida por um header customizado somado a
+`SameSite=Lax` quando os endpoints de mutação forem implementados (etapa 6).
+
+Motivo: cookie `httpOnly` não é acessível via JavaScript, reduzindo a
+superfície de roubo de token por XSS — mais seguro que `localStorage`, que
+fica exposto a qualquer script injetado na página. É a opção mais simples que
+atende à exigência de "autenticação segura, controle de sessão/token" do §12
+sem introduzir refresh tokens ou infraestrutura adicional no MVP.
+
+Arquivos afetados: `frontend/src/services/api.ts` (cliente axios com
+`withCredentials: true`), `frontend/src/contexts/AuthContext.tsx`. O emissor
+do cookie no backend (`/api/auth/login`) será implementado na etapa 6
+(autenticação).
