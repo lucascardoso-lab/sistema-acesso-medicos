@@ -12,6 +12,7 @@ __pycache__/
 
 # Node / Frontend
 node_modules/
+*.tsbuildinfo
 frontend/dist/
 
 # Uploads e dados sensíveis
