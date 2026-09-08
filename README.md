@@ -87,9 +87,11 @@ pytest
 
 ## Produção em Linux
 
-Ver seções 19 a 24 do [`BLUEPRINT.md`](docs/BLUEPRINT.md) para a publicação
-em Linux com Apache2 (reverse proxy), systemd (Uvicorn/Gunicorn) e o frontend
-compilado (`npm run build`) servido como estático. Nunca usar o servidor de
+Guia completo de implantação em [`docs/DEPLOY_LINUX.md`](docs/DEPLOY_LINUX.md):
+usuário/diretórios da aplicação, MySQL, virtualenv, serviço systemd
+(Gunicorn + Uvicorn workers), VirtualHost do Apache2 (reverse proxy + React
+Router) e checklist pós-deploy. Especificação de referência nas seções 19 a
+25 do [`BLUEPRINT.md`](docs/BLUEPRINT.md). Nunca usar o servidor de
 desenvolvimento do Vite nem `uvicorn --reload` em produção.
 
 ## Variáveis de ambiente

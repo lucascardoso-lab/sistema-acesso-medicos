@@ -14,5 +14,6 @@ python-multipart
 slowapi
 python-magic-bin; platform_system == "Windows"
 python-magic; platform_system != "Windows"
+gunicorn; platform_system != "Windows"
 pytest
 httpx
