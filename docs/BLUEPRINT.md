@@ -641,3 +641,35 @@ Arquivos afetados: `frontend/src/services/api.ts` (cliente axios com
 `withCredentials: true`), `frontend/src/contexts/AuthContext.tsx`. O emissor
 do cookie no backend (`/api/auth/login`) será implementado na etapa 6
 (autenticação).
+
+**Adendo 35.2 — API de solicitações: autorização, transições de status e paths de arquivo**
+
+Contexto: o §11 descreve os perfis Administrador e Técnico de forma narrativa
+("Administrador: gerencia usuários, consulta... Técnico: consulta, analisa,
+aprova/rejeita, registra resposta"), sem deixar explícito se o Administrador
+também pode executar as ações de análise (iniciar análise, aprovar, rejeitar,
+marcar respondida), nem qual a ordem obrigatória entre essas ações.
+
+Decisão:
+1. Os endpoints de leitura e ação de `/api/solicitacoes/*` exigem apenas
+   autenticação válida (`get_current_user`), sem restrição adicional por
+   perfil — Administrador tem acesso pleno às mesmas ações do Técnico, por
+   ser o perfil de maior privilégio.
+2. Máquina de estados aplicada no `solicitacao_service`: `iniciar_analise`
+   exige status `pendente`; `aprovar`/`rejeitar` exigem `em_analise`;
+   `marcar_respondida` exige `aprovada` ou `rejeitada`. Transição fora de
+   ordem retorna HTTP 409 com o status atual e o esperado.
+3. `documento_path` e `selfie_documento_path` do model `Solicitacao` nunca
+   aparecem nos schemas de resposta (`SolicitacaoListItem`/`SolicitacaoDetail`)
+   — nenhum path físico é exposto pela API, conforme §12. A visualização
+   seguro dos arquivos será implementada como endpoint dedicado na etapa 8
+   (upload seguro).
+
+Motivo: opção mais simples e segura para o MVP — evita duplicar lógica de
+autorização por ação antes de haver um caso de uso real que exija Técnico e
+Administrador terem permissões diferentes, e mantém a auditoria (histórico)
+consistente ao impedir pular etapas do fluxo de análise.
+
+Arquivos afetados: `backend/app/api/routes/solicitacoes.py`,
+`backend/app/services/solicitacao_service.py`,
+`backend/app/schemas/solicitacao.py`.
