@@ -755,3 +755,27 @@ Decisão:
 Arquivos afetados: `backend/app/api/routes/usuarios.py`,
 `backend/app/schemas/user.py`, `backend/app/repositories/user_repository.py`,
 `frontend/src/pages/admin/Usuarios.tsx`, `scripts/windows/*.bat`.
+
+**Adendo 35.6 — Framework de testes e escopo do teste de integração**
+
+Contexto: a seção "Testes" do CLAUDE.md deixa o framework em aberto; a etapa
+18 do §33 pede "testar integração frontend/backend" sem especificar o
+mecanismo.
+
+Decisão: `pytest` + `TestClient` do FastAPI (ambos já em `requirements.txt`),
+em `backend/tests/test_integracao_fluxo_completo.py`. Os testes rodam contra
+o próprio MySQL de desenvolvimento configurado no `.env` — não foi criado um
+banco de teste isolado nesta fase do MVP — e cada teste limpa os dados que
+cria ao final. Cobre o fluxo principal (§2) de ponta a ponta: criação pública
+com upload, listagem/filtro, detalhe sem expor paths, visualização de
+documento, transições de status até "respondida", histórico, dashboard, e
+autorização (401 sem login, 403 técnico tentando gerenciar usuários). Também
+validado manualmente: `npm run build` do frontend gera bundle de produção sem
+erros (aviso de tamanho de chunk >500KB é aceitável para o MVP, sem
+code-splitting nesta fase).
+
+Motivo: opção mais simples que não exige infraestrutura de banco adicional;
+adequado ao volume de dados de um MVP. Deve ser revisto (banco de teste
+dedicado) se a suíte crescer ou rodar em CI compartilhado.
+
+Arquivos afetados: `backend/tests/test_integracao_fluxo_completo.py`.
