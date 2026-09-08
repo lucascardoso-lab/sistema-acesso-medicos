@@ -15,6 +15,7 @@ from app.models.user import User
 from app.repositories import historico_repository, solicitacao_repository
 from app.schemas.historico import HistoricoOut
 from app.schemas.solicitacao import (
+    EnviarEmailRequest,
     ObservacaoRequest,
     RejeitarRequest,
     SolicitacaoCreatedResponse,
@@ -230,6 +231,18 @@ def adicionar_observacao(
 ):
     solicitacao = _get_solicitacao_ou_404(db, solicitacao_id)
     solicitacao_service.adicionar_observacao(db, solicitacao, user, payload.observacao_interna)
+    return _to_detail(_get_solicitacao_ou_404(db, solicitacao_id))
+
+
+@router.post("/{solicitacao_id}/enviar-email", response_model=SolicitacaoDetail)
+def enviar_email_resposta(
+    solicitacao_id: int,
+    payload: EnviarEmailRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    solicitacao = _get_solicitacao_ou_404(db, solicitacao_id)
+    solicitacao_service.enviar_email_resposta(db, solicitacao, user, payload.mensagem)
     return _to_detail(_get_solicitacao_ou_404(db, solicitacao_id))
 
 

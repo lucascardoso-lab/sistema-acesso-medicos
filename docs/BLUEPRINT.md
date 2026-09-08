@@ -709,3 +709,27 @@ Arquivos afetados: `backend/app/utils/file_validation.py`,
 `backend/app/services/upload_service.py`,
 `backend/app/api/routes/solicitacoes.py`,
 `backend/app/schemas/solicitacao.py`.
+
+**Adendo 35.4 — Envio de e-mail: quando é permitido e tratamento de falha**
+
+Contexto: o §26 pede a ação "Enviar resposta" via SMTP sem detalhar em quais
+status ela é permitida nem o que fazer quando o envio falha.
+
+Decisão: `POST /api/solicitacoes/{id}/enviar-email` só é permitido com status
+`aprovada` ou `rejeitada` (o médico só recebe resposta depois de uma decisão).
+O envio não altera o status automaticamente — "marcar como respondida"
+continua sendo uma ação separada e explícita do técnico. Falha de envio (SMTP
+não configurado ou erro de rede) é registrada em `Comunicacao`
+(`status_envio=falha`, com a mensagem de erro) e no histórico ("Falha ao
+enviar e-mail"), e a API retorna 502 — nunca falha silenciosamente. Sucesso
+gera o evento "Credenciais enviadas por e-mail" no histórico, conforme os
+exemplos do §9.
+
+Motivo: mantém o fluxo auditável mesmo quando o SMTP de desenvolvimento não
+está configurado (`.env` local tem `SMTP_HOST` vazio), e evita duplicar a
+decisão de status entre "enviar e-mail" e "marcar respondida".
+
+Arquivos afetados: `backend/app/core/email.py`,
+`backend/app/repositories/comunicacao_repository.py`,
+`backend/app/services/solicitacao_service.py`,
+`backend/app/api/routes/solicitacoes.py`.

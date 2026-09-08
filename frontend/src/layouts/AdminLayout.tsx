@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -6,11 +7,18 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div>
-      <header>
-        <span>{user?.nome}</span>
-        <button onClick={() => logout()}>Sair</button>
+      <header className="admin-header">
+        <nav className="admin-nav">
+          <NavLink to="/admin/dashboard">Dashboard</NavLink>
+          <NavLink to="/admin/solicitacoes">Solicitações</NavLink>
+          {user?.perfil === "administrador" && <NavLink to="/admin/usuarios">Usuários</NavLink>}
+        </nav>
+        <div className="admin-user">
+          <span>{user?.nome}</span>
+          <button onClick={() => logout()}>Sair</button>
+        </div>
       </header>
-      <main>{children}</main>
+      <main className="admin-main">{children}</main>
     </div>
   );
 }

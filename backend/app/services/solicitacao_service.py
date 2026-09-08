@@ -3,10 +3,11 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models.enums import StatusSolicitacao
+from app.core.email import EmailNaoConfiguradoError, enviar_email
+from app.models.enums import StatusSolicitacao, StatusEnvio
 from app.models.solicitacao import Solicitacao
 from app.models.user import User
-from app.repositories import historico_repository
+from app.repositories import comunicacao_repository, historico_repository
 
 
 def _erro_status_invalido(atual: StatusSolicitacao, esperado: StatusSolicitacao) -> HTTPException:
@@ -91,6 +92,75 @@ def adicionar_observacao(db: Session, solicitacao: Solicitacao, usuario: User, o
         usuario=usuario,
         acao="Observação interna adicionada",
         descricao=observacao,
+    )
+    db.commit()
+    db.refresh(solicitacao)
+    return solicitacao
+
+
+def enviar_email_resposta(db: Session, solicitacao: Solicitacao, usuario: User, mensagem: str) -> Solicitacao:
+    if solicitacao.status not in (StatusSolicitacao.APROVADA, StatusSolicitacao.REJEITADA):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ação inválida: solicitação precisa estar aprovada ou rejeitada",
+        )
+
+    assunto = "Solicitação de acesso - resultado da análise"
+    try:
+        enviar_email(solicitacao.email, assunto, mensagem)
+    except EmailNaoConfiguradoError as exc:
+        comunicacao_repository.registrar(
+            db,
+            solicitacao_id=solicitacao.id,
+            destinatario=solicitacao.email,
+            status_envio=StatusEnvio.FALHA,
+            enviado_por=usuario,
+            erro=str(exc),
+        )
+        historico_repository.registrar(
+            db,
+            solicitacao_id=solicitacao.id,
+            usuario=usuario,
+            acao="Falha ao enviar e-mail",
+            descricao=str(exc),
+        )
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail="Não foi possível enviar o e-mail"
+        ) from exc
+    except OSError as exc:
+        comunicacao_repository.registrar(
+            db,
+            solicitacao_id=solicitacao.id,
+            destinatario=solicitacao.email,
+            status_envio=StatusEnvio.FALHA,
+            enviado_por=usuario,
+            erro=str(exc),
+        )
+        historico_repository.registrar(
+            db,
+            solicitacao_id=solicitacao.id,
+            usuario=usuario,
+            acao="Falha ao enviar e-mail",
+            descricao=str(exc),
+        )
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail="Não foi possível enviar o e-mail"
+        ) from exc
+
+    comunicacao_repository.registrar(
+        db,
+        solicitacao_id=solicitacao.id,
+        destinatario=solicitacao.email,
+        status_envio=StatusEnvio.SUCESSO,
+        enviado_por=usuario,
+    )
+    historico_repository.registrar(
+        db,
+        solicitacao_id=solicitacao.id,
+        usuario=usuario,
+        acao="Credenciais enviadas por e-mail",
     )
     db.commit()
     db.refresh(solicitacao)
