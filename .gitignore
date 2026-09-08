@@ -1,0 +1,28 @@
+# Ambiente
+.env
+*.env
+!.env.example
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+
+# Uploads e dados sensíveis
+uploads/
+backend/uploads/
+
+# Logs
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

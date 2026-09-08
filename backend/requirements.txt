@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pymysql
+cryptography
+alembic
+pydantic
+pydantic-settings
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+slowapi
+python-magic-bin; platform_system == "Windows"
+python-magic; platform_system != "Windows"
+pytest
+httpx
