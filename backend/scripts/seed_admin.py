@@ -1,7 +1,7 @@
 """Cria ou atualiza a senha do usuário administrador inicial.
 
 Uso:
-    python -m scripts.seed_admin --nome "Nome" --email admin@exemplo.com --senha "senha-forte"
+    python -m scripts.seed_admin --nome "Nome" --login admin --email admin@exemplo.com --senha "senha-forte"
 """
 
 import argparse
@@ -20,6 +20,7 @@ from app.repositories import user_repository
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cria ou atualiza o usuário administrador inicial")
     parser.add_argument("--nome", required=True)
+    parser.add_argument("--login", required=True)
     parser.add_argument("--email", required=True)
     parser.add_argument("--senha", required=True)
     args = parser.parse_args()
@@ -30,12 +31,14 @@ def main() -> None:
         if user:
             user.password_hash = hash_password(args.senha)
             user.nome = args.nome
+            user.login = args.login
             user.perfil = PerfilUsuario.ADMINISTRADOR
             user.ativo = True
             print(f"Usuário {args.email} atualizado.")
         else:
             user = User(
                 nome=args.nome,
+                login=args.login,
                 email=args.email,
                 password_hash=hash_password(args.senha),
                 perfil=PerfilUsuario.ADMINISTRADOR,

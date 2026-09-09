@@ -8,6 +8,7 @@ export async function listarUsuarios(): Promise<Usuario[]> {
 
 export async function criarUsuario(input: {
   nome: string;
+  login: string;
   email: string;
   senha: string;
   perfil: PerfilUsuario;
@@ -18,7 +19,7 @@ export async function criarUsuario(input: {
 
 export async function atualizarUsuario(
   id: number,
-  input: Partial<{ nome: string; perfil: PerfilUsuario; ativo: boolean }>
+  input: Partial<{ nome: string; login: string; email: string; perfil: PerfilUsuario; ativo: boolean }>
 ): Promise<Usuario> {
   const { data } = await api.patch<Usuario>(`/usuarios/${id}`, input);
   return data;

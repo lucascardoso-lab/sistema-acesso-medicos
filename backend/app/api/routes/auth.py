@@ -8,7 +8,8 @@ from app.core.security import create_access_token, verify_password
 from app.database.session import get_db
 from app.models.user import User
 from app.repositories import user_repository
-from app.schemas.auth import LoginRequest, UserOut
+from app.schemas.auth import LoginRequest
+from app.schemas.user import UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -17,9 +18,11 @@ settings = get_settings()
 @router.post("/login", response_model=UserOut)
 @limiter.limit("10/minute")
 def login(request: Request, response: Response, credentials: LoginRequest, db: Session = Depends(get_db)):
-    user = user_repository.get_by_email(db, credentials.email)
+    user = user_repository.get_by_login_ou_email(db, credentials.login_ou_email)
     if not user or not user.ativo or not verify_password(credentials.senha, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="E-mail ou senha inválidos")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Login/e-mail ou senha inválidos"
+        )
 
     token = create_access_token(subject=str(user.id))
     response.set_cookie(

@@ -7,7 +7,13 @@ import {
 } from "../../services/usuarioApi";
 import type { PerfilUsuario, Usuario } from "../../types/usuario";
 
-const NOVO_USUARIO_INICIAL = { nome: "", email: "", senha: "", perfil: "tecnico" as PerfilUsuario };
+const NOVO_USUARIO_INICIAL = {
+  nome: "",
+  login: "",
+  email: "",
+  senha: "",
+  perfil: "tecnico" as PerfilUsuario,
+};
 
 export function Usuarios() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -59,6 +65,14 @@ export function Usuarios() {
             onChange={(e) => setNovoUsuario((u) => ({ ...u, nome: e.target.value }))}
           />
           <input
+            placeholder="Login"
+            required
+            pattern="[a-zA-Z0-9._-]{3,50}"
+            title="3 a 50 caracteres: letras, números, ponto, hífen ou underscore"
+            value={novoUsuario.login}
+            onChange={(e) => setNovoUsuario((u) => ({ ...u, login: e.target.value }))}
+          />
+          <input
             placeholder="E-mail"
             type="email"
             required
@@ -88,6 +102,7 @@ export function Usuarios() {
         <thead>
           <tr>
             <th>Nome</th>
+            <th>Login</th>
             <th>E-mail</th>
             <th>Perfil</th>
             <th>Status</th>
@@ -98,7 +113,21 @@ export function Usuarios() {
           {usuarios.map((u) => (
             <tr key={u.id}>
               <td>{u.nome}</td>
-              <td>{u.email}</td>
+              <td>{u.login}</td>
+              <td>
+                <input
+                  key={u.email}
+                  type="email"
+                  defaultValue={u.email}
+                  style={{ width: 200 }}
+                  onBlur={(e) => {
+                    const novoEmail = e.target.value.trim();
+                    if (novoEmail && novoEmail !== u.email) {
+                      handleErro(() => atualizarUsuario(u.id, { email: novoEmail }));
+                    }
+                  }}
+                />
+              </td>
               <td>
                 <select
                   value={u.perfil}

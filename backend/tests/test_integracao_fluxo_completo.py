@@ -47,7 +47,7 @@ def test_fluxo_completo_solicitacao_ate_respondida():
         protocolo = _criar_solicitacao(client, email_teste)
         assert protocolo.startswith("SOL-")
 
-        login = client.post("/api/auth/login", json={"email": ADMIN_EMAIL, "senha": ADMIN_SENHA})
+        login = client.post("/api/auth/login", json={"login_ou_email": ADMIN_EMAIL, "senha": ADMIN_SENHA})
         assert login.status_code == 200
 
         listagem = client.get("/api/solicitacoes", params={"busca": email_teste})
@@ -103,16 +103,24 @@ def test_tecnico_nao_acessa_gerenciamento_de_usuarios():
     client = TestClient(app)
     email_tecnico = "tecnico.integracao@teste.com"
 
-    client.post("/api/auth/login", json={"email": ADMIN_EMAIL, "senha": ADMIN_SENHA})
+    client.post("/api/auth/login", json={"login_ou_email": ADMIN_EMAIL, "senha": ADMIN_SENHA})
     criado = client.post(
         "/api/usuarios",
-        json={"nome": "Tecnico Integracao", "email": email_tecnico, "senha": "SenhaForte123!", "perfil": "tecnico"},
+        json={
+            "nome": "Tecnico Integracao",
+            "login": "tecnico.integracao",
+            "email": email_tecnico,
+            "senha": "SenhaForte123!",
+            "perfil": "tecnico",
+        },
     )
     assert criado.status_code == 201
     client.post("/api/auth/logout")
 
     try:
-        login_tecnico = client.post("/api/auth/login", json={"email": email_tecnico, "senha": "SenhaForte123!"})
+        login_tecnico = client.post(
+            "/api/auth/login", json={"login_ou_email": email_tecnico, "senha": "SenhaForte123!"}
+        )
         assert login_tecnico.status_code == 200
 
         assert client.get("/api/usuarios").status_code == 403

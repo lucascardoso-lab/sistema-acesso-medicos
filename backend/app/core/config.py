@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.app_env == "production"
 
+    @property
+    def frontend_urls(self) -> list[str]:
+        """FRONTEND_URL pode conter múltiplas origens separadas por vírgula
+        (ex.: para liberar CORS também para o IP da máquina na rede local
+        durante o desenvolvimento)."""
+        return [url.strip() for url in self.frontend_url.split(",") if url.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:

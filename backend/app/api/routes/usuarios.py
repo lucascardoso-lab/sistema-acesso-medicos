@@ -34,9 +34,12 @@ def criar_usuario(
 ):
     if user_repository.get_by_email(db, payload.email):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-mail já cadastrado")
+    if user_repository.get_by_login(db, payload.login):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Login já cadastrado")
 
     usuario = User(
         nome=payload.nome,
+        login=payload.login,
         email=payload.email,
         password_hash=hash_password(payload.senha),
         perfil=payload.perfil,
@@ -62,6 +65,16 @@ def atualizar_usuario(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Não é possível desativar o próprio usuário"
         )
 
+    if payload.login is not None and payload.login != usuario.login:
+        existente = user_repository.get_by_login(db, payload.login)
+        if existente and existente.id != usuario.id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Login já cadastrado")
+        usuario.login = payload.login
+    if payload.email is not None and payload.email != usuario.email:
+        existente = user_repository.get_by_email(db, payload.email)
+        if existente and existente.id != usuario.id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-mail já cadastrado")
+        usuario.email = payload.email
     if payload.nome is not None:
         usuario.nome = payload.nome
     if payload.perfil is not None:

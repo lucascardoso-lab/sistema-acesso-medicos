@@ -6,7 +6,7 @@ import { z } from "zod";
 import { useAuth } from "../../contexts/AuthContext";
 
 const schema = z.object({
-  email: z.string().email("E-mail inválido"),
+  login_ou_email: z.string().min(3, "Informe seu login ou e-mail"),
   senha: z.string().min(1, "Informe a senha"),
 });
 
@@ -28,10 +28,10 @@ export function Login() {
   async function onSubmit(values: FormValues) {
     setErro(null);
     try {
-      await login(values.email, values.senha);
+      await login(values.login_ou_email, values.senha);
       navigate(destino, { replace: true });
     } catch {
-      setErro("E-mail ou senha inválidos");
+      setErro("Login/e-mail ou senha inválidos");
     }
   }
 
@@ -41,9 +41,11 @@ export function Login() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="form-field">
-          <label htmlFor="email">E-mail</label>
-          <input id="email" type="email" {...register("email")} />
-          {errors.email && <span className="form-error">{errors.email.message}</span>}
+          <label htmlFor="login_ou_email">Login ou e-mail</label>
+          <input id="login_ou_email" {...register("login_ou_email")} />
+          {errors.login_ou_email && (
+            <span className="form-error">{errors.login_ou_email.message}</span>
+          )}
         </div>
 
         <div className="form-field">
