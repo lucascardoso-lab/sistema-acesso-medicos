@@ -894,3 +894,49 @@ IP da rede local fica apenas no `.env` local (não versionado).
 
 Arquivos afetados: `backend/app/core/config.py`, `backend/app/main.py`,
 `backend/.env.example`, `frontend/src/services/api.ts`.
+
+**Adendo 35.10 — Aviso de prazo de envio de credenciais na tela de sucesso**
+
+Contexto: o usuário pediu que a tela de confirmação do formulário público
+(`/solicitacao/sucesso`) informasse explicitamente o prazo e os canais de
+envio de login/senha, além do número de protocolo já exibido.
+
+Decisão: adicionado o texto "Você receberá seu login e senha por WhatsApp ou
+e-mail em até 24 horas." logo abaixo do protocolo. É apenas um texto
+informativo na tela — nenhum SLA de 24h nem envio automático por WhatsApp foi
+implementado no backend. Hoje (§26-27) o envio de e-mail é automático via
+`POST /api/solicitacoes/{id}/enviar-email`, mas o WhatsApp continua sendo o
+fluxo manual do MVP ("copiar mensagem para WhatsApp", §27) — a promessa de
+"WhatsApp em até 24h" depende de o técnico responsável executar essa etapa
+manualmente dentro do prazo; não é garantida pelo sistema.
+
+Motivo: mudança de texto pedida explicitamente pelo usuário. Registrada aqui
+para deixar claro que a UI promete algo (prazo, canal WhatsApp automático)
+que o backend ainda não garante — caso o WhatsApp automático (Meta WhatsApp
+Cloud API, citado no §27 como evolução futura) ou um lembrete de SLA sejam
+implementados depois, este adendo deve ser atualizado.
+
+Arquivos afetados: `frontend/src/pages/publico/SolicitacaoSucesso.tsx`.
+
+**Adendo 35.11 — Campo "Conselho" como lista fixa de opções**
+
+Contexto: o §3 (formulário público) pedia o campo "Conselho" como texto livre
+(placeholder "ex: CRM"). O usuário pediu que virasse uma caixa de seleção com
+uma lista fixa de conselhos profissionais, CRM sempre como primeira opção.
+
+Decisão: campo `conselho` do formulário público passa a ser um `<select>`
+com as opções, nesta ordem: CRM, CRO, CRN, CRBM, CFF, COREN, CREFITO,
+CREFONO, CRBio, e por último "Outros (especifique)". Ao selecionar "Outros",
+um campo de texto adicional (`conselho_outro`, não persistido — existe só no
+formulário) é exibido e se torna obrigatório (mínimo 2 caracteres); no
+envio, o valor final gravado no campo `conselho` da API é o texto digitado
+em "Outros", não a string `"outros"`. Nenhuma mudança no backend/banco: a
+coluna `conselho` continua `String` livre (§14), a lista de opções é
+validação/UX apenas do frontend (`zod` + `react-hook-form`).
+
+Motivo: opção mais simples pedida explicitamente pelo usuário, que evita
+alterar o schema do banco ou da API — mantém `conselho` como texto livre no
+backend (compatível com conselhos não previstos na lista) enquanto restringe
+as opções mais comuns na interface para reduzir erro de digitação.
+
+Arquivos afetados: `frontend/src/pages/publico/SolicitacaoForm.tsx`.
