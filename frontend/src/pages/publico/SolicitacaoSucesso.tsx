@@ -12,6 +12,9 @@ export function SolicitacaoSucesso() {
           Seu número de protocolo é <strong>{protocolo}</strong>. Guarde-o para acompanhamento.
         </p>
       )}
+      <p>
+        Você receberá seu login e senha por WhatsApp ou e-mail em até 24 horas.
+      </p>
       <Link to="/solicitacao">Enviar nova solicitação</Link>
     </div>
   );
