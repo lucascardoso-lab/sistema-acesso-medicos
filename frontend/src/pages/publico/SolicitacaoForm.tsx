@@ -10,6 +10,19 @@ const EXTENSOES_DOCUMENTO = [".pdf", ".jpg", ".jpeg", ".png"];
 const EXTENSOES_FOTO = [".jpg", ".jpeg", ".png"];
 const TAMANHO_MAXIMO_BYTES = 5 * 1024 * 1024;
 
+const CONSELHOS = [
+  "CRM",
+  "CRO",
+  "CRN",
+  "CRBM",
+  "CFF",
+  "COREN",
+  "CREFITO",
+  "CREFONO",
+  "CRBio",
+  "outros",
+] as const;
+
 function extensaoValida(nome: string, extensoes: string[]): boolean {
   const nomeLower = nome.toLowerCase();
   return extensoes.some((ext) => nomeLower.endsWith(ext));
@@ -23,20 +36,26 @@ function arquivoValido(extensoes: string[]) {
     .refine((f) => extensaoValida(f.name, extensoes), `Extensões aceitas: ${extensoes.join(", ")}`);
 }
 
-const schema = z.object({
-  nome_completo: z.string().min(3, "Informe o nome completo").max(150),
-  conselho: z.string().min(2, "Informe o conselho profissional").max(20),
-  numero_conselho: z.string().min(1, "Informe o número do conselho").max(30),
-  uf_conselho: z.enum(UFS, { message: "Selecione a UF do conselho" }),
-  especialidade: z.string().min(2, "Informe a especialidade").max(100),
-  email: z.string().email("E-mail inválido"),
-  telefone: z.string().min(8, "Informe um telefone válido").max(20),
-  consentimento_lgpd: z.literal(true, {
-    message: "É necessário aceitar o tratamento dos dados pessoais",
-  }),
-  documento: arquivoValido(EXTENSOES_DOCUMENTO),
-  foto_documento: arquivoValido(EXTENSOES_FOTO),
-});
+const schema = z
+  .object({
+    conselho: z.enum(CONSELHOS, { message: "Selecione o conselho profissional" }),
+    conselho_outro: z.string().max(20).optional(),
+    nome_completo: z.string().min(3, "Informe o nome completo").max(150),
+    numero_conselho: z.string().min(1, "Informe o número do conselho").max(30),
+    uf_conselho: z.enum(UFS, { message: "Selecione a UF do conselho" }),
+    especialidade: z.string().min(2, "Informe a especialidade").max(100),
+    email: z.string().email("E-mail inválido"),
+    telefone: z.string().min(8, "Informe um telefone válido").max(20),
+    consentimento_lgpd: z.literal(true, {
+      message: "É necessário aceitar o tratamento dos dados pessoais",
+    }),
+    documento: arquivoValido(EXTENSOES_DOCUMENTO),
+    foto_documento: arquivoValido(EXTENSOES_FOTO),
+  })
+  .refine((data) => data.conselho !== "outros" || (data.conselho_outro ?? "").trim().length >= 2, {
+    message: "Informe o nome do conselho",
+    path: ["conselho_outro"],
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -46,14 +65,18 @@ export function SolicitacaoForm() {
   const {
     register,
     control,
+    watch,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const conselhoSelecionado = watch("conselho");
 
   async function onSubmit(values: FormValues) {
     setErroEnvio(null);
     try {
-      const { protocolo } = await criarSolicitacao(values);
+      const conselho =
+        values.conselho === "outros" ? (values.conselho_outro ?? "").trim() : values.conselho;
+      const { protocolo } = await criarSolicitacao({ ...values, conselho });
       navigate("/solicitacao/sucesso", { state: { protocolo } });
     } catch (err) {
       const mensagem =
@@ -77,10 +100,29 @@ export function SolicitacaoForm() {
 
         <div className="form-row">
           <div className="form-field">
-            <label htmlFor="conselho">Conselho (ex: CRM)</label>
-            <input id="conselho" {...register("conselho")} />
+            <label htmlFor="conselho">Conselho</label>
+            <select id="conselho" defaultValue="" {...register("conselho")}>
+              <option value="" disabled>
+                Selecione
+              </option>
+              {CONSELHOS.map((conselho) => (
+                <option key={conselho} value={conselho}>
+                  {conselho === "outros" ? "Outros (especifique)" : conselho}
+                </option>
+              ))}
+            </select>
             {errors.conselho && <span className="form-error">{errors.conselho.message}</span>}
           </div>
+
+          {conselhoSelecionado === "outros" && (
+            <div className="form-field">
+              <label htmlFor="conselho_outro">Especifique o conselho</label>
+              <input id="conselho_outro" {...register("conselho_outro")} />
+              {errors.conselho_outro && (
+                <span className="form-error">{errors.conselho_outro.message}</span>
+              )}
+            </div>
+          )}
 
           <div className="form-field">
             <label htmlFor="numero_conselho">Número do conselho</label>
