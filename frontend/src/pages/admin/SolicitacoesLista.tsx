@@ -107,7 +107,7 @@ export function SolicitacoesLista() {
                   <td>{s.telefone}</td>
                   <td>{new Date(s.created_at).toLocaleDateString("pt-BR")}</td>
                   <td>
-                    <span className="badge">{STATUS_LABELS[s.status]}</span>
+                    <span className={`badge badge-${s.status}`}>{STATUS_LABELS[s.status]}</span>
                   </td>
                   <td>{s.responsavel_nome ?? "-"}</td>
                   <td>

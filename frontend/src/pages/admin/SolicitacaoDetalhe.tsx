@@ -67,7 +67,10 @@ export function SolicitacaoDetalhe() {
     <div>
       <h1>Solicitação {solicitacao.protocolo}</h1>
       <p>
-        Status: <span className="badge">{STATUS_LABELS[solicitacao.status]}</span>
+        Status:{" "}
+        <span className={`badge badge-${solicitacao.status}`}>
+          {STATUS_LABELS[solicitacao.status]}
+        </span>
       </p>
 
       <div className="card-row">

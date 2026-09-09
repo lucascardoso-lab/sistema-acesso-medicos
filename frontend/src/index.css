@@ -1,6 +1,33 @@
 :root {
   color-scheme: light;
-  font-family: system-ui, "Segoe UI", Arial, sans-serif;
+
+  /* Identidade visual INGOH — extraída do CSS real de https://ingoh.com.br/
+     (ver Adendo 35.8 no BLUEPRINT.md) */
+  --cor-primaria: #99153e;
+  --cor-primaria-escura: #5a0c23;
+  --cor-texto: #535353;
+  --cor-texto-escuro: #2e2e2e;
+  --cor-fundo-pagina: #f5f5f5;
+  --cor-fundo-card: #fdfdfd;
+  --cor-borda: #d1d1d1;
+  --cor-borda-clara: #e4e4e4;
+  --cor-neutro-claro: #eeeeee;
+
+  --fonte-titulo: "Montserrat", "Segoe UI", Arial, sans-serif;
+  --fonte-corpo: "Open Sans", "Segoe UI", Arial, sans-serif;
+
+  --badge-pendente-bg: #fceacb;
+  --badge-pendente-fg: #7a5300;
+  --badge-em-analise-bg: #dce6ea;
+  --badge-em-analise-fg: #2f4858;
+  --badge-aprovada-bg: #dcefe0;
+  --badge-aprovada-fg: #1e5631;
+  --badge-rejeitada-bg: #f5dce3;
+  --badge-rejeitada-fg: #5a0c23;
+  --badge-respondida-bg: #e4e4e4;
+  --badge-respondida-fg: #2e2e2e;
+
+  font-family: var(--fonte-corpo);
 }
 
 * {
@@ -9,15 +36,26 @@
 
 body {
   margin: 0;
-  background: #f5f6f8;
-  color: #1a1a1a;
+  background: var(--cor-fundo-pagina);
+  color: var(--cor-texto);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--fonte-titulo);
+  color: var(--cor-texto-escuro);
+}
+
+a {
+  color: var(--cor-primaria);
 }
 
 .form-container {
   max-width: 640px;
   margin: 2rem auto;
   padding: 1.5rem 2rem;
-  background: #fff;
+  background: var(--cor-fundo-card);
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -47,9 +85,10 @@ body {
 .form-field input,
 .form-field select {
   padding: 0.5rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--cor-borda);
   border-radius: 4px;
   font-size: 1rem;
+  font-family: var(--fonte-corpo);
 }
 
 .form-checkbox label {
@@ -60,7 +99,7 @@ body {
 }
 
 .form-error {
-  color: #c0392b;
+  color: var(--cor-primaria-escura);
   font-size: 0.85rem;
   margin-top: 0.25rem;
 }
@@ -71,12 +110,17 @@ body {
 
 button {
   padding: 0.6rem 1.2rem;
-  background: #2563eb;
+  background: var(--cor-primaria);
   color: #fff;
   border: none;
   border-radius: 4px;
   font-size: 1rem;
+  font-family: var(--fonte-corpo);
   cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--cor-primaria-escura);
 }
 
 button:disabled {
@@ -92,45 +136,65 @@ table {
 table th,
 table td {
   padding: 0.5rem;
-  border-bottom: 1px solid #e2e2e2;
+  border-bottom: 1px solid var(--cor-borda-clara);
   text-align: left;
   font-size: 0.9rem;
 }
 
+.logo-header {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
+.public-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--cor-fundo-card);
+  border-bottom: 3px solid var(--cor-primaria);
+}
+
 .admin-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1.5rem;
-  background: #1e293b;
+  gap: 2rem;
+  padding: 0.6rem 1.5rem;
+  background: var(--cor-primaria-escura);
   color: #fff;
 }
 
 .admin-nav {
   display: flex;
-  gap: 1.25rem;
+  align-items: center;
+  gap: 1.5rem;
+  flex: 1;
 }
 
 .admin-nav a {
-  color: #cbd5e1;
+  color: #f0dde2;
   text-decoration: none;
-  font-size: 0.95rem;
+  font-family: var(--fonte-titulo);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .admin-nav a.active {
   color: #fff;
-  font-weight: 600;
 }
 
 .admin-user {
   display: flex;
   align-items: center;
   gap: 1rem;
+  margin-left: auto;
 }
 
 .admin-user button {
   padding: 0.35rem 0.8rem;
   font-size: 0.85rem;
+  background: var(--cor-primaria);
 }
 
 .admin-main {
@@ -149,7 +213,7 @@ table td {
 .card {
   flex: 1;
   min-width: 150px;
-  background: #fff;
+  background: var(--cor-fundo-card);
   border-radius: 8px;
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -158,13 +222,15 @@ table td {
 .card h3 {
   margin: 0 0 0.5rem;
   font-size: 0.85rem;
-  color: #64748b;
-  font-weight: 500;
+  color: var(--cor-texto);
+  font-weight: 600;
 }
 
 .card .valor {
   font-size: 1.8rem;
   font-weight: 700;
+  font-family: var(--fonte-titulo);
+  color: var(--cor-primaria);
 }
 
 .filtros {
@@ -177,8 +243,9 @@ table td {
 .filtros input,
 .filtros select {
   padding: 0.4rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--cor-borda);
   border-radius: 4px;
+  font-family: var(--fonte-corpo);
 }
 
 .paginacao {
@@ -190,10 +257,37 @@ table td {
 
 .badge {
   display: inline-block;
-  padding: 0.15rem 0.5rem;
+  padding: 0.15rem 0.6rem;
   border-radius: 4px;
   font-size: 0.8rem;
-  background: #e2e8f0;
+  font-weight: 600;
+  background: var(--cor-neutro-claro);
+  color: var(--cor-texto-escuro);
+}
+
+.badge-pendente {
+  background: var(--badge-pendente-bg);
+  color: var(--badge-pendente-fg);
+}
+
+.badge-em_analise {
+  background: var(--badge-em-analise-bg);
+  color: var(--badge-em-analise-fg);
+}
+
+.badge-aprovada {
+  background: var(--badge-aprovada-bg);
+  color: var(--badge-aprovada-fg);
+}
+
+.badge-rejeitada {
+  background: var(--badge-rejeitada-bg);
+  color: var(--badge-rejeitada-fg);
+}
+
+.badge-respondida {
+  background: var(--badge-respondida-bg);
+  color: var(--badge-respondida-fg);
 }
 
 .acoes {
@@ -204,9 +298,13 @@ table td {
 }
 
 .acoes button.secundario {
-  background: #64748b;
+  background: #757575;
+}
+
+.acoes button.secundario:hover:not(:disabled) {
+  background: var(--cor-texto-escuro);
 }
 
 .acoes button.perigo {
-  background: #dc2626;
+  background: var(--cor-primaria-escura);
 }

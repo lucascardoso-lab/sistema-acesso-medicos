@@ -779,3 +779,118 @@ adequado ao volume de dados de um MVP. Deve ser revisto (banco de teste
 dedicado) se a suíte crescer ou rodar em CI compartilhado.
 
 Arquivos afetados: `backend/tests/test_integracao_fluxo_completo.py`.
+
+**Adendo 35.7 — Login por usuário (`login`), além do e-mail**
+
+Contexto: o BLUEPRINT original (§12) previa autenticação apenas por e-mail.
+O usuário pediu, após o MVP inicial, a opção de logar também por um
+identificador de usuário curto.
+
+Decisão: novo campo `login` em `users` (`String(50)`, único, padrão
+`^[a-zA-Z0-9._-]{3,50}$`), definido manualmente na criação/edição do usuário
+pela tela de Usuários (sem geração automática). `POST /api/auth/login` passa
+a receber `login_ou_email` e busca o usuário por `email` OU `login`
+(`user_repository.get_by_login_ou_email`). Usuários existentes no banco
+receberam um login provisório via migration (`a3a823258a92`), gerado a partir
+da parte do e-mail antes do `@` — o administrador deve revisar/ajustar esses
+logins provisórios conforme necessário.
+
+Motivo: opção mais simples pedida explicitamente pelo usuário; manter o
+e-mail como identificador alternativo (em vez de substituí-lo) evita quebrar
+o fluxo de login já validado e não exige alterar `Solicitacao` nem nenhuma
+outra tabela.
+
+Arquivos afetados: `backend/app/models/user.py`,
+`backend/migrations/versions/a3a823258a92_*.py`,
+`backend/app/schemas/auth.py`, `backend/app/schemas/user.py`,
+`backend/app/repositories/user_repository.py`,
+`backend/app/api/routes/auth.py`, `backend/app/api/routes/usuarios.py`,
+`backend/scripts/seed_admin.py`,
+`frontend/src/pages/admin/Login.tsx`, `frontend/src/pages/admin/Usuarios.tsx`,
+`frontend/src/contexts/AuthContext.tsx`, `frontend/src/services/authApi.ts`,
+`frontend/src/services/usuarioApi.ts`.
+
+**Adendo 35.8 — Identidade visual INGOH (paleta, tipografia, logo)**
+
+Contexto: o BLUEPRINT não especifica identidade visual/branding. O usuário
+pediu explicitamente que o frontend (público e administrativo) refletisse a
+marca da INGOH (https://ingoh.com.br/), mantendo a estrutura funcional atual
+— sem alterar rotas, lógica ou chamadas de API.
+
+Decisão: paleta e tipografia extraídas diretamente do CSS real do site (não
+estimadas), a partir dos arquivos gerados pelo Elementor
+(`--e-global-color-primary/secondary/text` em `post-4.css` e uso confirmado
+em `post-430.css`/`post-6022.css`) e dos `@font-face` carregados
+(`font-family:"Montserrat"` majoritário em headings, `"Open Sans"` no corpo):
+
+- Primária: `#99153E` (bordô) — botões, links, destaques
+- Primária escura: `#5A0C23` — header administrativo, hover de botões, estado "Rejeitada"
+- Texto padrão: `#535353` / texto escuro: `#2E2E2E`
+- Neutros de fundo: `#FDFDFD` (cards), `#F5F5F5` (fundo de página), `#EEEEEE`/`#E4E4E4` (bordas)
+- Tipografia: `Montserrat` (headings) + `Open Sans` (corpo), via Google Fonts
+- Uma cor `--accent:#00C3FF` estava definida nas variáveis globais do
+  Elementor mas sem uso real detectado em nenhum elemento visível do site —
+  **não foi adotada**, para não introduzir uma cor fora da identidade
+  efetivamente aplicada pela INGOH.
+
+Todas as cores foram centralizadas em variáveis CSS (`:root` em
+`frontend/src/index.css`), nenhuma cor hex solta nos componentes. Badges de
+status usam uma cor por status, cada uma auditada contra WCAG AA
+(mínimo 4.5:1 texto/fundo):
+
+| Status | Fundo | Texto | Contraste |
+|---|---|---|---|
+| Pendente | `#FCEACB` | `#7A5300` | 5.80:1 |
+| Em análise | `#DCE6EA` | `#2F4858` | 7.56:1 |
+| Aprovada | `#DCEFE0` | `#1E5631` | 7.19:1 |
+| Rejeitada | `#F5DCE3` | `#5A0C23` | 10.74:1 |
+| Respondida | `#E4E4E4` | `#2E2E2E` | 10.68:1 |
+
+Botões primários (branco sobre `#99153E`: 8.30:1) e o header administrativo
+(branco sobre `#5A0C23`: 13.89:1) também auditados e aprovados.
+
+Logo oficial baixado do próprio site e versionado em `frontend/src/assets/`
+(`ingoh-marca.webp` — versão colorida, usada no header público;
+`ingoh-marca-branca.webp` — versão branca, usada no header administrativo
+escuro; `ingoh-bola-192.webp` — símbolo circular, usado como favicon).
+
+Motivo: opção mais fiel possível à marca real (dados extraídos do CSS
+computado, não estimados), evitando introduzir cores fora do sistema visual
+da instituição, mantida a sobriedade esperada de uma instituição de saúde
+certificada (sem cores muito saturadas, sem ícones informais).
+
+Arquivos afetados: `frontend/index.html`, `frontend/src/index.css`,
+`frontend/src/layouts/PublicLayout.tsx`, `frontend/src/layouts/AdminLayout.tsx`,
+`frontend/src/pages/admin/SolicitacoesLista.tsx`,
+`frontend/src/pages/admin/SolicitacaoDetalhe.tsx`,
+`frontend/src/assets/ingoh-marca.webp`,
+`frontend/src/assets/ingoh-marca-branca.webp`,
+`frontend/src/assets/ingoh-bola-192.webp`, `frontend/public/favicon.webp`.
+
+**Adendo 35.9 — CORS multi-origem e URL de API dinâmica para testes na rede local**
+
+Contexto: durante o desenvolvimento, o usuário precisou acessar o frontend a
+partir do IP da máquina na rede local (para testar de outros dispositivos),
+o que quebrava de duas formas: o Vite só escutava em `localhost`, e o
+backend rejeitava a origem por CORS (`allow_origins` aceitava apenas uma
+única URL), além do cliente axios ter a URL da API fixa em
+`http://localhost:8000/api`.
+
+Decisão: `FRONTEND_URL` (`.env`) passa a aceitar múltiplas origens separadas
+por vírgula (`Settings.frontend_urls`, usado em `CORSMiddleware(allow_origins=...)`
+em `app/main.py`). No frontend, a baseURL do axios (`services/api.ts`) deixa
+de ser fixa e passa a ser derivada de `window.location.hostname` quando
+`VITE_API_URL` não está definida — assim a mesma build funciona acessada por
+`localhost` ou pelo IP da máquina, sem reconfiguração. Em dev, os servidores
+sobem com `--host` (Vite) e `--host 0.0.0.0` (uvicorn) para escutar em todas
+as interfaces. Nada disso é usado em produção: lá `FRONTEND_URL` continua
+sendo uma única URL pública e `VITE_API_URL` é definida explicitamente no
+build (§20-22).
+
+Motivo: opção mais simples que atende à necessidade de teste em múltiplos
+dispositivos na rede local sem comprometer a configuração de produção
+(CORS de origem única) nem exigir hardcode de IP em código versionado — o
+IP da rede local fica apenas no `.env` local (não versionado).
+
+Arquivos afetados: `backend/app/core/config.py`, `backend/app/main.py`,
+`backend/.env.example`, `frontend/src/services/api.ts`.
