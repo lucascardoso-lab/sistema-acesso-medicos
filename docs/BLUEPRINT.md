@@ -1158,3 +1158,131 @@ domínio — nenhum dos dois sintomas aponta obviamente para a causa real.
 
 Arquivos afetados: `docs/DEPLOY_LINUX.md`, `README.md` (apenas
 documentação — nenhuma mudança de código nesta etapa).
+
+**Adendo 35.17 — `srv-apl`: instabilidade de rede (netfront/Xen), Postfix como relay SMTP e `VITE_API_URL` relativo (LAN/WAN)**
+
+Contexto: fatos relatados e confirmados pelo responsável do projeto durante
+testes finais em produção no servidor `srv-apl` — esta sessão não tem
+acesso direto a `srv-apl` para verificação independente; o registro abaixo
+transcreve o diagnóstico e as decisões já tomadas no servidor real.
+
+**a) Causa raiz de instabilidade de rede: driver `netfront` (VM Xen)**
+
+`srv-apl` é uma VM Xen. O driver de rede virtual `netfront` apresenta um
+bug conhecido de perda de pacotes intermitente (observada >60% em testes
+com `ping` em alguns momentos), ligado a offloads de segmentação
+(TSO/GSO/GRO/LRO). Afeta qualquer conexão de saída do servidor (SMTP e,
+potencialmente, qualquer integração de rede futura) — não é um problema
+específico deste sistema.
+
+Mitigação parcial aplicada — desabilita os offloads de segmentação na
+interface:
+
+```bash
+ethtool -K enX0 tso off gso off gro off lro off
+```
+
+Tornada permanente via serviço systemd
+(`/etc/systemd/system/disable-offload-enX0.service`), habilitado no boot,
+para sobreviver a reinícios do servidor. **Checksum offload (tx/rx) não
+pôde ser desabilitado** — o driver `netfront` aceita o comando mas ignora
+o valor (`ethtool` reporta `off` solicitado, permanece `on` na prática), ou
+seja, essa via de mitigação está esgotada no nível do sistema operacional
+guest.
+
+**Pendência para infraestrutura física**: a causa raiz completa está fora
+do alcance do SO guest — requer investigação no hypervisor Xen
+(configuração da interface virtual `vif` no host) ou no link físico/
+roteador. Ação futura registrada: solicitar à administração de
+infraestrutura física verificar a configuração de offload da interface
+virtual desse host, e se outras VMs no mesmo host apresentam o mesmo
+sintoma.
+
+**b) Envio de e-mail via Postfix local como relay (decisão definitiva)**
+
+Consequência direta do item (a): o backend conectando direto ao Gmail
+(`smtp.gmail.com:587`) falhava de forma visível e sem nova tentativa
+automática — incluindo no envio real de credenciais após aprovação de uma
+solicitação, com risco de o médico não receber o acesso sem que ninguém
+percebesse (o painel mostra sucesso ou erro apenas na hora do clique, sem
+retry).
+
+Decisão: Postfix instalado como MTA local, configurado como relay
+autenticado para o Gmail via senha de app (mesma mecânica de senha de app
+do Adendo 35.12, agora usada pelo Postfix em vez de diretamente pelo
+backend Python). A configuração de SMTP do sistema (tela "Configurações",
+Adendo 35.12) passou a apontar para `127.0.0.1:25`, sem autenticação — o
+Postfix já detém as credenciais do Gmail em
+`/etc/postfix/sasl_passwd` e faz o relay por conta própria.
+
+Esse arquivo (`/etc/postfix/sasl_passwd`) fica fora da estrutura do
+repositório (é configuração do sistema operacional do servidor, em
+`/etc`, não dentro da pasta do projeto) — não há necessidade de entrada no
+`.gitignore` para ele, porque o Git não tem visibilidade sobre caminhos
+fora do próprio diretório de trabalho do repositório em nenhuma
+circunstância. O `.gitignore` da raiz do projeto já cobre `.env` e
+similares dentro do repositório (ver Adendo/seção "Segurança e
+privacidade" do `CLAUDE.md`); nenhuma mudança foi necessária nele por
+causa deste ponto.
+
+Efeito prático: o envio via painel retorna sucesso imediato ao entregar a
+mensagem para o Postfix local; a entrega real ao Gmail acontece em segundo
+plano, com fila de retry automático nativo do Postfix — nenhuma mensagem é
+perdida, apenas pode haver atraso (segundos a poucos minutos) quando a
+rede está instável, em vez de falha imediata e visível.
+
+Detalhe de configuração relevante (`/etc/postfix/main.cf`):
+`inet_protocols = ipv4` foi necessário porque o driver de rede também
+expunha o mesmo problema para tentativas de conexão IPv6 sem rota real —
+o mesmo sintoma já visto antes diretamente no `smtplib` do Python, antes
+desta mudança.
+
+**Trade-off assumido conscientemente pelo responsável do projeto**: entrega
+deixou de ser garantidamente instantânea em troca de nunca falhar de forma
+silenciosa — dado o estado atual da infraestrutura de rede (item a), essa
+troca foi considerada a opção correta para este ambiente.
+
+**c) `VITE_API_URL` relativo — CORS/Private Network Access entre LAN e WAN**
+
+`srv-apl` é acessível tanto pela rede interna (IP privado) quanto pelo IP
+público, ambos na mesma porta via Apache2 (HTTPS). Fixar `VITE_API_URL`
+para um host absoluto específico no build de produção do frontend (como
+recomendado no Adendo 35.16) resolvia o acesso por uma via mas quebrava a
+outra: o navegador bloqueia chamada de uma origem pública para um endereço
+de rede local ("Private Network Access"), e bloqueia por CORS qualquer
+chamada para um host diferente do que serviu a página.
+
+Correção definitiva: usar caminho relativo no build de produção, já que o
+Apache2 serve o frontend e faz `ProxyPass /api` para o backend no mesmo
+`VirtualHost` (§22 do BLUEPRINT):
+
+```bash
+echo "VITE_API_URL=/api" > frontend/.env.production
+```
+
+Como é um caminho relativo (sem esquema nem host), a chamada da API
+sempre usa o mesmo host que serviu a página — funciona de forma idêntica
+acessando por LAN ou por WAN, sem precisar rebuildar o frontend ao trocar
+de endereço de acesso. Isso **substitui** a recomendação do Adendo 35.16
+de fixar `VITE_API_URL=https://<domínio-ou-ip>/api` com um host absoluto
+— aquela recomendação continua válida quando só existe uma única forma de
+acesso (um domínio único), mas não quando o mesmo servidor precisa
+responder por mais de uma origem/rede como em `srv-apl`. `FRONTEND_URL`
+no `backend/.env` deve continuar listando todas as origens que
+efetivamente servem a aplicação (Adendo 35.9), incluindo tanto o endereço
+de LAN quanto o público.
+
+Motivo geral do adendo: os três pontos têm a mesma causa de fundo (rede do
+ambiente real de `srv-apl` sendo mais complexa — e menos confiável — do
+que o cenário de domínio único assumido pelos guias originais) e foram
+resolvidos juntos no mesmo ciclo de testes finais de produção. Registrar
+em conjunto evita que uma correção pareça isolada quando na verdade decorre
+diretamente da mesma limitação de infraestrutura.
+
+Arquivos afetados: nenhum arquivo do repositório precisou mudar por causa
+deste adendo — Postfix, o serviço `disable-offload-enX0` e
+`/etc/postfix/sasl_passwd` são configuração do sistema operacional do
+servidor `srv-apl`, fora da árvore do repositório; a configuração de SMTP
+(host `127.0.0.1`, porta `25`) e o `VITE_API_URL=/api` são valores de
+ambiente/config, não código versionado. Este adendo é o único registro
+formal dessas decisões.
