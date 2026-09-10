@@ -1,12 +1,15 @@
 # Sistema de Cadastro, Validação e Liberação de Acesso de Médicos
 
-Sistema web para cadastro, validação e liberação de acesso de médicos:
-formulário público de solicitação + área administrativa para análise,
-aprovação/rejeição e envio da resposta.
+Sistema web para cadastro, validação e liberação de acesso de médicos. O
+médico acessa uma página pública, preenche seus dados profissionais e envia
+documentos para comprovação de identidade. Um técnico de TI acessa a área
+administrativa, analisa a solicitação e, após aprovar ou rejeitar, envia ao
+médico o resultado da análise (e, em caso de aprovação, as credenciais de
+acesso ao sistema de resultados).
 
 A especificação funcional e técnica completa está em
 [`docs/BLUEPRINT.md`](docs/BLUEPRINT.md), incluindo o histórico de decisões
-técnicas (seção 35).
+técnicas tomadas ao longo do desenvolvimento (seção 35).
 
 ## Stack
 
@@ -36,7 +39,7 @@ inicial:
 
 ```bat
 alembic upgrade head
-python -m scripts.seed_admin --nome "Seu Nome" --email admin@exemplo.com --senha "SenhaForte123!"
+python -m scripts.seed_admin --nome "Seu Nome" --login admin --email admin@exemplo.com --senha "SenhaForte123!"
 ```
 
 Suba o backend:
@@ -96,5 +99,14 @@ desenvolvimento do Vite nem `uvicorn --reload` em produção.
 
 ## Variáveis de ambiente
 
-Ver `backend/.env.example` para a lista completa. Nunca versionar `.env`
-real, senhas ou secrets — apenas `.env.example` fica no repositório.
+Ver `backend/.env.example` (backend) e `frontend/.env.example` (frontend)
+para a lista completa. Nunca versionar `.env` real, senhas ou secrets —
+apenas os `.env.example` ficam no repositório. A configuração de SMTP não é
+feita por variável de ambiente: é cadastrada pelo administrador na tela
+"Configurações" da área administrativa (senha armazenada criptografada no
+banco — ver Adendo 35.12 do BLUEPRINT).
+
+## Uso
+
+Software de uso interno da INGOH (Instituto Goiano de Oncologia e
+Hematologia). Não possui licença de código aberto.

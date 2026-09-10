@@ -1065,3 +1065,40 @@ identifica a INGOH e o resultado, independentemente do que o técnico
 escrever.
 
 Arquivos afetados: `backend/app/services/solicitacao_service.py`.
+
+**Adendo 35.15 — README/DEPLOY_LINUX.md atualizados para publicação no GitHub**
+
+Contexto: ao preparar o repositório para publicação no GitHub, o usuário
+pediu para revisar o `README.md` e expandir `docs/DEPLOY_LINUX.md` em um
+guia completo do zero (§19-25 do BLUEPRINT).
+
+Decisão / correções:
+1. **Bug fora do escopo original, corrigido**: os comandos de exemplo do
+   `scripts.seed_admin` no `README.md` e no `DEPLOY_LINUX.md` estavam sem o
+   argumento `--login`, que se tornou obrigatório no Adendo 35.7 (login por
+   usuário) — o comando documentado falharia com `error: the following
+   arguments are required: --login`. Corrigido nos dois arquivos.
+2. `DEPLOY_LINUX.md` reescrito com: instalação completa de dependências de
+   SO (incluindo `certbot`/`python3-certbot-apache`, que só era mencionado
+   no exemplo de VirtualHost, não na lista de pacotes); Node.js via
+   repositório oficial NodeSource (`deb.nodesource.com/setup_lts.x`) — o
+   pacote `nodejs` dos repositórios padrão do Ubuntu/Debian costuma estar
+   desatualizado para o Vite; `.env` de produção completo e sincronizado
+   com `backend/.env.example` atual (`ACCESS_TOKEN_EXPIRE_MINUTES`, que
+   faltava, e sem `SMTP_*`, removido do `.env` desde o Adendo 35.12, com
+   nota explícita direcionando à tela "Configurações"); fluxo HTTP-primeiro
+   → Certbot (VirtualHost `:80` sem SSL, `a2ensite`, reload, só depois
+   `certbot --apache`) em vez de um VirtualHost `:443` de exemplo estático,
+   com a alternativa manual (`certbot certonly --apache`) para quem já tem
+   VirtualHost customizado; verificação de renovação automática
+   (`certbot renew --dry-run`, `systemctl status certbot.timer`).
+3. Checklist pós-deploy (§8) ganhou itens para testar visualização
+   autenticada de documento/foto e o teste de envio de SMTP pela tela
+   "Configurações".
+
+Motivo: o guia anterior presumia conhecimento prévio do projeto (ex.: não
+instalava Node.js, não listava `certbot` como pacote, referenciava
+variáveis de SMTP que não existem mais) — inadequado para alguém instalar o
+MVP do zero, que era o objetivo explícito do pedido.
+
+Arquivos afetados: `README.md`, `docs/DEPLOY_LINUX.md`.
