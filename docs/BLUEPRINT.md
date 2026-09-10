@@ -940,3 +940,128 @@ backend (compatível com conselhos não previstos na lista) enquanto restringe
 as opções mais comuns na interface para reduzir erro de digitação.
 
 Arquivos afetados: `frontend/src/pages/publico/SolicitacaoForm.tsx`.
+
+**Adendo 35.12 — Configuração de SMTP pela área administrativa (exceção à regra "secrets sempre via .env")**
+
+Contexto: o §25/CLAUDE.md estabelece que secrets — explicitamente citando
+SMTP — devem ficar sempre em variável de ambiente, nunca no banco. Ao
+investigar uma falha de envio de e-mail (SMTP não configurado no `.env` de
+dev), o usuário pediu explicitamente que a configuração de SMTP passasse a
+ser feita pela própria aplicação web (tela administrativa), em vez de exigir
+acesso ao `.env` do servidor. Diante do conflito com a regra fixa do
+CLAUDE.md, a exceção foi confirmada explicitamente pelo usuário antes da
+implementação.
+
+Decisão:
+1. Nova tabela `smtp_config` (linha única, id fixo `1`): `host`, `port`,
+   `usuario`, `senha_criptografada`, `remetente`, `updated_at`, `updated_by`.
+   A senha nunca é gravada em texto puro — é criptografada simetricamente
+   (`cryptography.fernet.Fernet`) com chave derivada de `SECRET_KEY`
+   (`app/core/crypto.py`), então nenhum novo secret precisa ser adicionado ao
+   `.env`. A senha também nunca é devolvida pela API (`SmtpConfigOut` expõe
+   apenas `senha_configurada: bool`).
+2. `GET/PUT /api/configuracoes/smtp` e `POST /api/configuracoes/smtp/testar`
+   (envia e-mail de teste real) exigem perfil `administrador`
+   (`require_perfil`, mesmo padrão de `/api/usuarios`). Tela "Configurações"
+   no menu administrativo (visível só para administrador, mesmo padrão de
+   "Usuários"), com formulário de host/porta/usuário/senha/remetente e um
+   formulário separado de teste de envio.
+3. `app/core/email.py` deixou de ler `Settings` (`.env`) e passou a carregar
+   a configuração de `smtp_config` via `db: Session` (novo parâmetro
+   obrigatório de `enviar_email`); os campos `smtp_*` foram removidos de
+   `Settings`/`.env.example`/`.env`. `EmailNaoConfiguradoError` agora dispara
+   quando não há linha em `smtp_config` (nenhuma migration de dados — quem
+   tinha SMTP configurado via `.env` precisa recadastrar pela tela).
+4. Testado via Playwright contra o app rodando (login como admin, salvar
+   configuração, reload confirma persistência e placeholder "manter senha
+   atual", teste de envio contra host inválido retorna erro 502 legível na
+   tela) e verificação direta no MySQL de que `senha_criptografada` não é a
+   senha em texto puro.
+
+Motivo: atende ao pedido explícito do usuário de eliminar a dependência de
+acesso ao arquivo `.env` do servidor para configurar e-mail — útil sobretudo
+em produção (Linux), onde só quem tem acesso SSH/systemd poderia editar o
+`.env` hoje. A criptografia em repouso com chave derivada do `SECRET_KEY`
+(já um secret protegido por env var) foi o compromisso mais simples que
+preserva a intenção de segurança da regra original (nunca texto puro,
+nunca exposto pela API) sem reintroduzir a dependência de arquivo.
+
+Arquivos afetados: `backend/app/core/crypto.py`, `backend/app/core/email.py`,
+`backend/app/core/config.py`, `backend/app/models/smtp_config.py`,
+`backend/app/models/__init__.py`,
+`backend/app/repositories/smtp_config_repository.py`,
+`backend/app/schemas/smtp_config.py`,
+`backend/app/api/routes/configuracoes.py`,
+`backend/app/api/routes/__init__.py`,
+`backend/app/services/solicitacao_service.py`,
+`backend/migrations/versions/75c487ef0680_cria_tabela_smtp_config.py`,
+`backend/.env.example`,
+`frontend/src/services/configuracaoApi.ts`,
+`frontend/src/pages/admin/Configuracoes.tsx`,
+`frontend/src/routes/AppRoutes.tsx`, `frontend/src/layouts/AdminLayout.tsx`,
+`frontend/src/index.css`.
+
+**Adendo 35.13 — Anexo opcional no e-mail de resposta ao médico**
+
+Contexto: o usuário pediu para anexar um arquivo (PDF, JPG ou PNG) à
+mensagem enviada em `POST /api/solicitacoes/{id}/enviar-email` (§26), que
+antes só aceitava texto.
+
+Decisão: o endpoint passou de JSON (`{"mensagem": ...}`) para
+`multipart/form-data` (`mensagem` como campo de formulário, `anexo` como
+arquivo opcional), reaproveitando integralmente a mesma validação dos
+uploads do formulário público (`validar_e_ler_upload` — allowlist de
+extensão `.pdf/.jpg/.jpeg/.png`, MIME real via `python-magic`, limite de
+`MAX_UPLOAD_SIZE`). O anexo nunca é salvo em disco nem em `UPLOAD_DIR`: fica
+em memória durante a requisição, é anexado à mensagem SMTP
+(`EmailMessage.add_attachment`) com nome fixo `anexo<extensão>` (nunca o
+nome original do arquivo, para não expor metadados nem permitir injeção via
+nome de arquivo) e descartado ao final do envio. O evento "Credenciais
+enviadas por e-mail" no histórico (§9) passa a registrar "Enviado com
+anexo" quando aplicável, para manter a auditoria.
+
+Motivo: opção mais simples que atende ao pedido sem introduzir uma segunda
+categoria de arquivo armazenado — como o anexo é conteúdo transitório
+(enviado e descartado, nunca consultado depois pela aplicação), não há
+motivo para persisti-lo em `UPLOAD_DIR` nem gerar um path auditável como os
+documentos da solicitação original.
+
+Testado via Playwright contra o app rodando: solicitação de teste criada
+via API, aprovada, anexo PNG enviado pela tela para um e-mail de teste
+(`@example.com`, domínio reservado que nunca entrega a pessoa real),
+histórico confirmando "Enviado com anexo". Dados de teste removidos após a
+verificação.
+
+Arquivos afetados: `backend/app/core/email.py`,
+`backend/app/services/solicitacao_service.py`,
+`backend/app/api/routes/solicitacoes.py`, `backend/app/schemas/solicitacao.py`,
+`backend/tests/test_integracao_fluxo_completo.py`,
+`frontend/src/services/solicitacaoAdminApi.ts`,
+`frontend/src/pages/admin/SolicitacaoDetalhe.tsx`.
+
+**Adendo 35.14 — Assunto e cabeçalho fixos identificando a INGOH no e-mail de resposta**
+
+Contexto: o assunto e o corpo do e-mail enviado em "Enviar resposta por
+e-mail" (§26) eram genéricos — assunto fixo "Solicitação de acesso -
+resultado da análise" e corpo 100% livre, digitado pelo técnico (ex.:
+"usuario X / senha X"), sem identificar a INGOH nem repetir o
+resultado/protocolo. O usuário pediu que ficasse mais claro que é o
+resultado da análise da INGOH.
+
+Decisão: `solicitacao_service.enviar_email_resposta` passou a montar
+assunto e um cabeçalho fixos a partir dos dados da própria solicitação,
+antes do texto livre do técnico:
+- Assunto: `INGOH - Resultado da análise da sua solicitação de acesso
+  ({protocolo})`.
+- Corpo: saudação com `nome_completo`, uma linha fixa citando "INGOH",
+  o protocolo e o resultado (`APROVADA`/`REJEITADA`, derivado do
+  `status` atual da solicitação), seguida em branco pelo texto que o
+  técnico digitou na tela (mensagem/credenciais), sem alterar esse campo.
+
+Motivo: opção mais simples que resolve a ambiguidade sem tirar do técnico o
+controle sobre o conteúdo específico da mensagem (credenciais, orientações)
+— o cabeçalho fixo garante que todo e-mail enviado pelo sistema já
+identifica a INGOH e o resultado, independentemente do que o técnico
+escrever.
+
+Arquivos afetados: `backend/app/services/solicitacao_service.py`.
