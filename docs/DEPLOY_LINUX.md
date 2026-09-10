@@ -2,7 +2,8 @@
 
 Referência: seções 19-25 do [`BLUEPRINT.md`](BLUEPRINT.md) (e os adendos da
 seção 35, que atualizam decisões tomadas depois da especificação original —
-em especial o Adendo 35.12, que mudou a configuração de SMTP). Este guia
+em especial o Adendo 35.12, que mudou a configuração de SMTP, e o Adendo
+35.16, com observações de um deploy real sem domínio disponível). Este guia
 parte de um servidor Ubuntu/Debian limpo e usa o domínio fictício
 `sistema.exemplo.com` e o caminho `/var/www/sistema` — troque pelos valores
 reais do seu ambiente em todos os passos abaixo.
@@ -127,6 +128,17 @@ FRONTEND_URL=https://sistema.exemplo.com
 > texto puro nem em variável de ambiente. Não esqueça desse passo pós-deploy
 > (checklist, item 8).
 
+> ⚠️ **`FRONTEND_URL` precisa ser a(s) origem(ns) real(is) de produção —
+> nunca o valor de exemplo/dev.** Se ficar esquecido como
+> `http://localhost:5173` (ou vazio), o `CORSMiddleware` do backend rejeita
+> silenciosamente as chamadas feitas pelo navegador a partir do domínio/IP
+> real. **Sintoma característico:** o login sempre retorna "credenciais
+> inválidas" mesmo com a senha correta — na prática é a requisição sendo
+> bloqueada por CORS antes de chegar na rota, não uma senha errada (visto
+> em deploy real, Adendo 35.16). Use a URL pública completa, com esquema:
+> `FRONTEND_URL=https://sistema.exemplo.com` (múltiplas origens separadas
+> por vírgula, se necessário, ex. domínio + IP).
+
 Rode as migrations e crie o administrador inicial:
 
 ```bash
@@ -150,6 +162,16 @@ npm run build
 desenvolvimento essa variável é opcional (o cliente deduz a URL a partir do
 `hostname` acessado, Adendo 35.9), mas em produção é recomendável defini-la
 explicitamente para apontar sempre ao domínio público real.
+
+> ⚠️ **Em produção, `VITE_API_URL` não é opcional.** Se ficar em branco, o
+> frontend deduz a URL da API a partir do `hostname` acessado assumindo a
+> porta 8000 direta do backend (Adendo 35.9) — porta que em produção **não
+> fica exposta** (só o Apache2 fala com a internet, seção 21). **Sintomas
+> característicos:** `net::ERR_CONNECTION_TIMED_OUT` no console do
+> navegador, mais um aviso de "Mixed Content" (a URL detectada vem em
+> `http://`, a página está em `https://`) (visto em deploy real, Adendo
+> 35.16). A URL correta aponta para o proxy `/api` do Apache2 — **nunca**
+> para a porta 8000: `VITE_API_URL=https://sistema.exemplo.com/api`.
 
 Copie o conteúdo gerado em `frontend/dist/` para
 `/var/www/sistema/frontend/dist/` no servidor:
@@ -310,7 +332,68 @@ isto (é o que o modo automático gera):
 </VirtualHost>
 ```
 
-### 7.3. Renovação automática
+### 7.3. Alternativa sem domínio real: certificado autoassinado
+
+Se ainda não há domínio real apontando para o servidor (ex.: acesso
+provisório por IP durante um deploy), o Certbot não tem como validar o
+domínio — não há passo 7.2 possível ainda. **O acesso final precisa ser
+HTTPS de qualquer forma**, porque o cookie de sessão é `Secure` (Adendo
+35.1) e só é aceito pelo navegador em conexão HTTPS. A solução temporária é
+um certificado autoassinado, usado em produção real em `srv-apl` (Adendo
+35.16) enquanto não havia domínio:
+
+```bash
+sudo mkdir -p /etc/apache2/ssl
+sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+    -keyout /etc/apache2/ssl/sistema-medicos.key \
+    -out /etc/apache2/ssl/sistema-medicos.crt \
+    -subj "/C=BR/ST=GO/L=Goiania/O=INGOH/CN=<IP-ou-hostname-do-servidor>"
+```
+
+Ajuste o VirtualHost `:443` (mesmo modelo do que o Certbot geraria, seção
+7.2) para usar esses arquivos em vez dos do Let's Encrypt:
+
+```apache
+<VirtualHost *:443>
+    ServerName <IP-ou-hostname-do-servidor>
+
+    SSLEngine on
+    SSLCertificateFile      /etc/apache2/ssl/sistema-medicos.crt
+    SSLCertificateKeyFile   /etc/apache2/ssl/sistema-medicos.key
+
+    DocumentRoot /var/www/sistema/frontend/dist
+
+    <Directory /var/www/sistema/frontend/dist>
+        Options -Indexes
+        AllowOverride None
+        Require all granted
+        FallbackResource /index.html
+    </Directory>
+
+    ProxyPreserveHost On
+    ProxyPass        /api http://127.0.0.1:8000/api
+    ProxyPassReverse /api http://127.0.0.1:8000/api
+
+    ErrorLog  ${APACHE_LOG_DIR}/sistema-medicos-error.log
+    CustomLog ${APACHE_LOG_DIR}/sistema-medicos-access.log combined
+</VirtualHost>
+```
+
+```bash
+sudo apache2ctl configtest
+sudo systemctl reload apache2
+```
+
+`FRONTEND_URL` (backend) e `VITE_API_URL` (build do frontend) devem usar
+esse mesmo `https://<IP-ou-hostname>` — veja os avisos nas seções 4 e 5.
+
+**Isto é temporário.** Navegadores mostram aviso de certificado não
+confiável a cada acesso (aceitável nesta fase, não para uso definitivo).
+Assim que houver domínio real, siga a seção 7.2 (Certbot) e revise o
+Adendo 35.16 no BLUEPRINT — o certificado autoassinado deixa de ser
+necessário.
+
+### 7.4. Renovação automática (cenário com Certbot)
 
 O pacote `certbot` instala um timer systemd que renova certificados perto
 do vencimento automaticamente. Confirme que está ativo e teste a renovação
@@ -339,5 +422,13 @@ corretamente.
       (ex.: `https://sistema.exemplo.com/uploads/...` deve dar 404)
 - [ ] SMTP configurado pela tela "Configurações" (Adendo 35.12) e testado
       com o botão "Enviar e-mail de teste"
-- [ ] `certbot renew --dry-run` sem erro (renovação automática do certificado)
+- [ ] `FRONTEND_URL` (backend) e `VITE_API_URL` (build do frontend) apontam
+      para a URL pública real (domínio ou IP), não para valores de
+      dev/exemplo (Adendo 35.16) — login funciona e o console do navegador
+      não mostra erro de CORS nem `ERR_CONNECTION_TIMED_OUT`
+- [ ] Certbot: `certbot renew --dry-run` sem erro (renovação automática do
+      certificado) — **ou**, se usando certificado autoassinado (seção
+      7.3, sem domínio ainda): anotado o prazo de validade (825 dias) para
+      renovar manualmente, e registrado como pendência migrar para Certbot
+      assim que houver domínio (Adendo 35.16)
 - [ ] Backup do MySQL configurado (fora do escopo deste documento)

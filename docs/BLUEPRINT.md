@@ -1102,3 +1102,59 @@ variáveis de SMTP que não existem mais) — inadequado para alguém instalar o
 MVP do zero, que era o objetivo explícito do pedido.
 
 Arquivos afetados: `README.md`, `docs/DEPLOY_LINUX.md`.
+
+**Adendo 35.16 — Deploy real em `srv-apl`: certificado autoassinado e configuração obrigatória de `FRONTEND_URL`/`VITE_API_URL`**
+
+Contexto: durante o deploy de produção real no servidor `srv-apl`, o
+ambiente divergiu do cenário assumido pelo guia original (§19-22,
+`DEPLOY_LINUX.md`), que pressupõe um domínio real disponível desde o
+início. Três problemas concretos foram encontrados e corrigidos:
+
+1. **Sem domínio real disponível no momento do deploy**, o certificado
+   HTTPS foi gerado como autoassinado (`openssl req -x509`, válido por
+   825 dias, salvo em `/etc/apache2/ssl/`) em vez de Let's Encrypt/Certbot.
+   Navegadores mostram aviso de certificado não confiável a cada acesso —
+   aceito nesta fase, por não haver domínio para o Certbot validar.
+2. **`backend/.env` — `FRONTEND_URL` (Adendo 35.9) esquecido com o valor
+   de exemplo/dev** (`http://localhost:5173`) em vez das origens reais de
+   produção. Sintoma observado: login sempre retornava "credenciais
+   inválidas" mesmo com senha correta — na verdade o `CORSMiddleware`
+   bloqueia a requisição do navegador antes dela chegar à rota de login,
+   e o frontend exibe isso como falha de autenticação em vez de erro de
+   rede, mascarando a causa real.
+3. **`frontend/.env.production` — `VITE_API_URL` não definido**. A
+   detecção automática de URL da API por `window.location.hostname`
+   (Adendo 35.9) monta a URL assumindo a porta 8000 direta do backend, que
+   em produção não fica exposta (só o Apache2 fala com a internet, §21).
+   Sintoma: `net::ERR_CONNECTION_TIMED_OUT` no console do navegador, mais
+   aviso de "Mixed Content" (a URL detectada vem em `http://`, a página
+   está em `https://`). Correção: fixar explicitamente
+   `VITE_API_URL=https://<domínio-ou-ip>/api` no build de produção,
+   apontando para a URL pública do Apache2 (que faz o proxy `/api` para o
+   backend), nunca para a porta 8000.
+4. Consequência dos itens 2 e 3: o acesso final deve ser sempre por HTTPS
+   — o cookie de sessão é `Secure` (Adendo 35.1) e só é aceito pelo
+   navegador em conexão HTTPS, então mesmo o certificado autoassinado
+   (item 1) é necessário mais cedo do que o guia original sugeria.
+
+Decisão: `docs/DEPLOY_LINUX.md` ganhou uma alternativa documentada de
+certificado autoassinado (temporária, para quando não há domínio real
+ainda) e um aviso destacado sobre `FRONTEND_URL`/`VITE_API_URL` com os
+sintomas de cada erro, para que o próximo deploy sem domínio reconheça o
+problema rapidamente em vez de depurar do zero. O `README.md` ganhou uma
+seção "Produção em Linux" com os comandos completos em sequência (mesmo
+nível de detalhe da seção Windows), reduzindo a chance de pular uma
+variável de ambiente por estar só em prosa no guia longo.
+
+**Pendência conhecida**: quando houver um domínio real com Certbot/Let's
+Encrypt configurado em `srv-apl` (fluxo padrão do §19-22), revisar este
+adendo — o certificado autoassinado deixa de ser necessário e o aviso de
+navegador não confiável desaparece.
+
+Motivo: registrar a causa raiz real dos dois incidentes (CORS mascarado
+como "senha errada"; Mixed Content por API apontando para porta interna)
+evita que o mesmo tempo de depuração se repita em um próximo deploy sem
+domínio — nenhum dos dois sintomas aponta obviamente para a causa real.
+
+Arquivos afetados: `docs/DEPLOY_LINUX.md`, `README.md` (apenas
+documentação — nenhuma mudança de código nesta etapa).
