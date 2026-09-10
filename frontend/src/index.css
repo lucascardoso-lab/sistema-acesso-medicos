@@ -108,6 +108,12 @@ a {
   margin-bottom: 1rem;
 }
 
+.form-sucesso {
+  color: #1e5631;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
 button {
   padding: 0.6rem 1.2rem;
   background: var(--cor-primaria);

@@ -18,12 +18,6 @@ class Settings(BaseSettings):
     upload_dir: Path = Path("./uploads")
     max_upload_size: int = 5 * 1024 * 1024
 
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_user: str = ""
-    smtp_password: str = ""
-    smtp_from: str = ""
-
     frontend_url: str = "http://localhost:5173"
 
     @property

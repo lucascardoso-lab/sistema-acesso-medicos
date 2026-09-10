@@ -9,6 +9,7 @@ import { Dashboard } from "../pages/admin/Dashboard";
 import { SolicitacoesLista } from "../pages/admin/SolicitacoesLista";
 import { SolicitacaoDetalhe } from "../pages/admin/SolicitacaoDetalhe";
 import { Usuarios } from "../pages/admin/Usuarios";
+import { Configuracoes } from "../pages/admin/Configuracoes";
 
 export function AppRoutes() {
   return (
@@ -77,6 +78,17 @@ export function AppRoutes() {
           <ProtectedRoute>
             <AdminLayout>
               <Usuarios />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/configuracoes"
+        element={
+          <ProtectedRoute>
+            <AdminLayout>
+              <Configuracoes />
             </AdminLayout>
           </ProtectedRoute>
         }

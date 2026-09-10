@@ -18,6 +18,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <NavLink to="/admin/dashboard">Dashboard</NavLink>
           <NavLink to="/admin/solicitacoes">Solicitações</NavLink>
           {user?.perfil === "administrador" && <NavLink to="/admin/usuarios">Usuários</NavLink>}
+          {user?.perfil === "administrador" && (
+            <NavLink to="/admin/configuracoes">Configurações</NavLink>
+          )}
         </nav>
         <div className="admin-user">
           <span>{user?.nome}</span>

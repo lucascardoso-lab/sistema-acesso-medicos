@@ -1,27 +1,52 @@
 import smtplib
 from email.message import EmailMessage
 
-from app.core.config import get_settings
+from sqlalchemy.orm import Session
 
-settings = get_settings()
+from app.core.crypto import descriptografar
+from app.repositories import smtp_config_repository
 
 
 class EmailNaoConfiguradoError(Exception):
     pass
 
 
-def enviar_email(destinatario: str, assunto: str, corpo: str) -> None:
-    if not settings.smtp_host or not settings.smtp_from:
-        raise EmailNaoConfiguradoError("SMTP não configurado (SMTP_HOST/SMTP_FROM ausentes)")
+MIME_POR_EXTENSAO = {
+    ".pdf": ("application", "pdf"),
+    ".jpg": ("image", "jpeg"),
+    ".jpeg": ("image", "jpeg"),
+    ".png": ("image", "png"),
+}
+
+
+def enviar_email(
+    db: Session,
+    destinatario: str,
+    assunto: str,
+    corpo: str,
+    anexo: tuple[bytes, str] | None = None,
+) -> None:
+    config = smtp_config_repository.obter(db)
+    if not config or not config.host or not config.remetente:
+        raise EmailNaoConfiguradoError(
+            "SMTP não configurado — acesse Configurações na área administrativa"
+        )
 
     mensagem = EmailMessage()
     mensagem["Subject"] = assunto
-    mensagem["From"] = settings.smtp_from
+    mensagem["From"] = config.remetente
     mensagem["To"] = destinatario
     mensagem.set_content(corpo)
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as servidor:
+    if anexo:
+        conteudo, extensao = anexo
+        maintype, subtype = MIME_POR_EXTENSAO[extensao]
+        mensagem.add_attachment(
+            conteudo, maintype=maintype, subtype=subtype, filename=f"anexo{extensao}"
+        )
+
+    with smtplib.SMTP(config.host, config.port, timeout=10) as servidor:
         servidor.starttls()
-        if settings.smtp_user and settings.smtp_password:
-            servidor.login(settings.smtp_user, settings.smtp_password)
+        if config.usuario and config.senha_criptografada:
+            servidor.login(config.usuario, descriptografar(config.senha_criptografada))
         servidor.send_message(mensagem)
