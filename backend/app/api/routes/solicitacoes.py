@@ -15,7 +15,6 @@ from app.models.user import User
 from app.repositories import historico_repository, solicitacao_repository
 from app.schemas.historico import HistoricoOut
 from app.schemas.solicitacao import (
-    EnviarEmailRequest,
     ObservacaoRequest,
     RejeitarRequest,
     SolicitacaoCreatedResponse,
@@ -235,14 +234,23 @@ def adicionar_observacao(
 
 
 @router.post("/{solicitacao_id}/enviar-email", response_model=SolicitacaoDetail)
-def enviar_email_resposta(
+async def enviar_email_resposta(
     solicitacao_id: int,
-    payload: EnviarEmailRequest,
+    mensagem: Annotated[str, Form(min_length=3, max_length=5000)],
+    anexo: Annotated[UploadFile | None, File()] = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     solicitacao = _get_solicitacao_ou_404(db, solicitacao_id)
-    solicitacao_service.enviar_email_resposta(db, solicitacao, user, payload.mensagem)
+
+    anexo_validado = None
+    if anexo and anexo.filename:
+        conteudo, extensao = await validar_e_ler_upload(
+            anexo, extensoes_permitidas=EXTENSOES_DOCUMENTO
+        )
+        anexo_validado = (conteudo, extensao)
+
+    solicitacao_service.enviar_email_resposta(db, solicitacao, user, mensagem, anexo_validado)
     return _to_detail(_get_solicitacao_ou_404(db, solicitacao_id))
 
 

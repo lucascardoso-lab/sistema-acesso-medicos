@@ -21,6 +21,8 @@ export function SolicitacaoDetalhe() {
   const [historico, setHistorico] = useState<HistoricoItem[]>([]);
   const [observacao, setObservacao] = useState("");
   const [mensagemEmail, setMensagemEmail] = useState("");
+  const [anexoEmail, setAnexoEmail] = useState<File | undefined>(undefined);
+  const [anexoInputKey, setAnexoInputKey] = useState(0);
   const [motivoRejeicao, setMotivoRejeicao] = useState("");
   const [mostrarRejeicao, setMostrarRejeicao] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -171,12 +173,28 @@ export function SolicitacaoDetalhe() {
             value={mensagemEmail}
             onChange={(e) => setMensagemEmail(e.target.value)}
           />
+          <div className="form-field">
+            <label htmlFor="anexo_email">Anexo (opcional — PDF, JPG ou PNG)</label>
+            <input
+              key={anexoInputKey}
+              id="anexo_email"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => setAnexoEmail(e.target.files?.[0])}
+            />
+          </div>
           <div className="acoes">
             <button
               disabled={processando || mensagemEmail.trim().length < 3}
               onClick={async () => {
-                const sucesso = await executar(() => enviarEmail(solicitacao.id, mensagemEmail));
-                if (sucesso) setMensagemEmail("");
+                const sucesso = await executar(() =>
+                  enviarEmail(solicitacao.id, mensagemEmail, anexoEmail)
+                );
+                if (sucesso) {
+                  setMensagemEmail("");
+                  setAnexoEmail(undefined);
+                  setAnexoInputKey((k) => k + 1);
+                }
               }}
             >
               Enviar e-mail

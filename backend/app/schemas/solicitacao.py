@@ -60,10 +60,6 @@ class RejeitarRequest(BaseModel):
     motivo: str = Field(min_length=3, max_length=2000)
 
 
-class EnviarEmailRequest(BaseModel):
-    mensagem: str = Field(min_length=3, max_length=5000)
-
-
 class ObservacaoRequest(BaseModel):
     observacao_interna: str = Field(max_length=2000)
 

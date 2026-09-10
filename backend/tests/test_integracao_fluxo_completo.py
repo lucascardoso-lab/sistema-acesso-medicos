@@ -69,7 +69,7 @@ def test_fluxo_completo_solicitacao_ate_respondida():
         assert client.post(f"/api/solicitacoes/{solicitacao_id}/aprovar").status_code == 200
 
         resposta_email = client.post(
-            f"/api/solicitacoes/{solicitacao_id}/enviar-email", json={"mensagem": "teste"}
+            f"/api/solicitacoes/{solicitacao_id}/enviar-email", data={"mensagem": "teste"}
         )
         assert resposta_email.status_code in (200, 502)
 

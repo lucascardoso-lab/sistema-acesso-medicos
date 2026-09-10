@@ -98,16 +98,29 @@ def adicionar_observacao(db: Session, solicitacao: Solicitacao, usuario: User, o
     return solicitacao
 
 
-def enviar_email_resposta(db: Session, solicitacao: Solicitacao, usuario: User, mensagem: str) -> Solicitacao:
+def enviar_email_resposta(
+    db: Session,
+    solicitacao: Solicitacao,
+    usuario: User,
+    mensagem: str,
+    anexo: tuple[bytes, str] | None = None,
+) -> Solicitacao:
     if solicitacao.status not in (StatusSolicitacao.APROVADA, StatusSolicitacao.REJEITADA):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ação inválida: solicitação precisa estar aprovada ou rejeitada",
         )
 
-    assunto = "Solicitação de acesso - resultado da análise"
+    resultado_label = "APROVADA" if solicitacao.status == StatusSolicitacao.APROVADA else "REJEITADA"
+    assunto = f"INGOH - Resultado da análise da sua solicitação de acesso ({solicitacao.protocolo})"
+    corpo = (
+        f"Olá, {solicitacao.nome_completo},\n\n"
+        f"Este é o resultado da análise da sua solicitação de acesso junto ao INGOH "
+        f"(protocolo {solicitacao.protocolo}): solicitação {resultado_label}.\n\n"
+        f"{mensagem}"
+    )
     try:
-        enviar_email(solicitacao.email, assunto, mensagem)
+        enviar_email(db, solicitacao.email, assunto, corpo, anexo)
     except EmailNaoConfiguradoError as exc:
         comunicacao_repository.registrar(
             db,
@@ -161,6 +174,7 @@ def enviar_email_resposta(db: Session, solicitacao: Solicitacao, usuario: User, 
         solicitacao_id=solicitacao.id,
         usuario=usuario,
         acao="Credenciais enviadas por e-mail",
+        descricao="Enviado com anexo" if anexo else None,
     )
     db.commit()
     db.refresh(solicitacao)

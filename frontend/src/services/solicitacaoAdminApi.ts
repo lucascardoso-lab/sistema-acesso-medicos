@@ -51,8 +51,16 @@ export async function adicionarObservacao(
   return data;
 }
 
-export async function enviarEmail(id: number, mensagem: string): Promise<SolicitacaoDetail> {
-  const { data } = await api.post<SolicitacaoDetail>(`/solicitacoes/${id}/enviar-email`, { mensagem });
+export async function enviarEmail(
+  id: number,
+  mensagem: string,
+  anexo?: File
+): Promise<SolicitacaoDetail> {
+  const formData = new FormData();
+  formData.append("mensagem", mensagem);
+  if (anexo) formData.append("anexo", anexo);
+
+  const { data } = await api.post<SolicitacaoDetail>(`/solicitacoes/${id}/enviar-email`, formData);
   return data;
 }
 
